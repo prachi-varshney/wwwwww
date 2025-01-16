@@ -18,7 +18,7 @@ function stateList(){
     
 }
 
-function cityList($id){
+function districtList($id){
     $db = new Database();
     $query = "SELECT * FROM district_master WHERE state_id = ".$id;
     $result = $db->getData($query);
@@ -37,28 +37,30 @@ function cityList($id){
 
 function tableList(){
     $db = new Database();
-    $query = "SELECT t1.*,t2.state_name AS state,t3.district_name AS city FROM empp AS t1 LEFT JOIN state_master as t2 ON t1.state = t2.state_id LEFT JOIN district_master AS t3 ON t3.district_id = t1.city";
+    $query = "SELECT t1.*,t2.state_name AS state,t3.district_name AS district FROM empp AS t1 LEFT JOIN state_master as t2 ON t1.state = t2.state_id LEFT JOIN district_master AS t3 ON t3.district_id = t1.districts";
     $result = $db->getData($query);
     
     $html = '';  
 
     if($result['success'] == true){
         foreach($result['data'] as $value){
+            $hobbies = $value['hobbies'].', '.$value['other_hobbies'];
             $html .= '<tr>';
-            $html .= '<td>' . $value['id'] . '</td>';
+            $html .= '<td> <a href="javascript:void(0);" style="text-decoration:none" onclick="getFromData(' . $value['id'] . ')" >#' .$value['id']. '</a></td>';
             $html .= '<td>' . $value['name'] . '</td>';
             $html .= '<td>' . $value['email'] . '</td>';
             $html .= '<td>' . $value['phone_no'] . '</td>';
-            $html .= '<td>' . $value['dob'] . '</td>';
+            // $html .= '<td>' . $value['dob'] . '</td>';
+            $html .= '<td>' . date('d/m/y', strtotime($value['dob'])) . '</td>';
             $html .= '<td>' . $value['experience'] . '</td>';
             $html .= '<td>' . $value['gender'] . '</td>';
-            $html .= '<td>' . $value['hobbies'] . '</td>';
+            $html .= '<td>' .  $hobbies . '</td>';
             $html .= '<td>' . $value['salary'] . '</td>';
-            $html .= '<td>' . $value['address'] . ', ' . $value['state'] . ', ' . $value['city'] . ' - ' . $value['pincode'] . '</td>';
+            $html .= '<td>' . $value['address'] . ', ' . $value['state'] . ', ' . $value['district'] . ' - ' . $value['pincode'] . '</td>';
             
             $html .= '<td>' . $value['bio'] . '</td>';
          
-            $html .= '<td>' . (isset($value['image']) ? $value['image'] : 'No Image') . '</td>'; 
+            $html .= '<td> <img style="max-width:20px; min-width:20px"  src=' . (!empty($value['Image']) ? $value['Image'] : 'No Image') . ' ></td>'; 
 
             $html .= '<td>
             <button class="btn btn-sm btn-primary" onclick="getFromData(' . $value['id'] . ')" >edit</button>
@@ -84,14 +86,16 @@ function addEditForm($post) {
         $name = $formData['name'];
         $email = $formData['email'];
         $phone_no = $formData['phone_no'];
-        $dob = !empty(date('Y-m-d', strtotime($formData['dob'])))?$formData['dob']:"";
+        $dob = !empty(date('d/m/y', strtotime($formData['dob'])))?$formData['dob']:"";
         $gender = isset($formData['gender'])?$formData['gender']:NULL;
         $experience = $formData['experience'];
         $salary = !empty($formData['salary'])?$formData['salary']:'0.00';
         $state = !empty($formData['state'])?$formData['state']:0;
-        $city = !empty($formData['city'])?$formData['city']:0;
+        $district = !empty($formData['district'])?$formData['district']:0;
         $pincode = $formData['pincode'];
         $hobbies = $formData['hobbies'];
+        $other_hobbies = $formData['other_hobbies'];
+//print_r($other_hobbies);die;
         $bio = $formData['bio'];
         $address = $formData['address'];
         
@@ -117,8 +121,8 @@ function addEditForm($post) {
             $err[] = "State cannot be empty.";
         }
 
-        if (empty($city)) {
-            $err[] = "City cannot be empty.";
+        if (empty($district)) {
+            $err[] = "district cannot be empty.";
         }
 
         if (!empty($err)) {
@@ -127,13 +131,32 @@ function addEditForm($post) {
                 break;
             }
         }
+
+
+        $target_file = '';
+        if (isset($_FILES['profile']) && $_FILES['profile']['error'] == 0) {
+            $target_dir = "uploads/"; 
+            $target_file = $target_dir . time().str_replace(' ','',$_FILES["profile"]["name"]);
+           move_uploaded_file($_FILES["profile"]["tmp_name"], $target_file);
+              
+        }
+
+        $image_update = $target_file;
+
+        if(empty($image_update)){
+            $image_update = "";
+        }
+        else{
+            $image_update = ", Image = '$image_update'";
+        }
+
         $query =  "";
         if (empty($id)) {
-            $query = "INSERT INTO empp (name, email, phone_no, dob, experience, salary,gender, state, city, pincode, hobbies, bio, address)
-            VALUES ('$name', '$email', '$phone_no', '$dob', '$experience', '$salary', '$gender', '$state', '$city', '$pincode', '$hobbies', '$bio', '$address')";
+            $query = "INSERT INTO empp (name, email, phone_no, dob, experience, salary,gender, state, districts, pincode, hobbies, bio, address,Image,other_hobbies)
+            VALUES ('$name', '$email', '$phone_no', '$dob', '$experience', '$salary', '$gender', '$state', '$district', '$pincode', '$hobbies', '$bio', '$address' , '$target_file','$other_hobbies')";
         } else {
             $query = "UPDATE empp 
-            SET name = '$name', email = '$email', phone_no = '$phone_no', dob = '$dob', experience = '$experience', salary = '$salary', state = '$state', city = '$city', pincode = '$pincode', hobbies = '$hobbies', bio = '$bio', address = '$address' 
+            SET name = '$name', email = '$email', phone_no = '$phone_no', dob = '$dob', experience = '$experience', salary = '$salary', state = '$state', districts = '$district', pincode = '$pincode', hobbies = '$hobbies', bio = '$bio', address = '$address' $image_update ,other_hobbies = '$other_hobbies'
             WHERE id = '$id'";
         }
 
@@ -188,9 +211,10 @@ if(!empty($req_type)){
         echo json_encode(array("success"=>true, "message"=>"Record deleted"));
     }elseif($req_type == 'state'){
         echo stateList();  
-    }elseif($req_type == 'city'){
-        echo cityList($post['state_id']);  
+    }elseif($req_type == 'district'){
+        echo districtList($post['state_id']);  
     }
+
 }
 
 

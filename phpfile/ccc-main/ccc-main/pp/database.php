@@ -21,25 +21,35 @@ class Database{
         }
     }
 
+   
+
+
+
     function getData($query=""){
         try{
             if($this->connection){
-                $result = $this->connection->query($query);
-                // print_r($result);die;
-                $count = mysqli_num_rows($result);
+                $result = $this->connection->query($query);     //this->connection is not null If the connection exists, the function proceeds to execute the query.
+                if (!$result) {
+                    throw new Exception($this->connection->error);
+                }
+                $count = $result->num_rows;       // check the number of rows returned by the query
                 if($count > 0){
-                    return array("success"=> true,"message">"Data found","data"=>$result->fetch_all(MYSQLI_ASSOC));
+                    return array("success"=> true,"message">"Data found","data"=>$result->fetch_all(MYSQLI_ASSOC));    //the retrieved data as an associative array
                 }  else{
                     return array("success"=> false,"message">"No data found","data"=>array());
                 } 
             }else{
                 return array("success"=> false,"message">"Database connection error","data"=>array());
             }
-
+    
         }catch(Exception $e ){
-            return array("success"=> false,"message">$e->getMessage(),"data"=>array());
+            return array("success"=> false,"message"=>$e->getMessage(),"data"=>array());
+           
         }
     }
+
+
+
 
     function getRowData($query) {
         if (!empty($this->connection)) {
@@ -58,6 +68,7 @@ class Database{
         if (!empty($this->connection)) {
             $dbres = $this->connection->query($query);
             $res = $this->connection->affected_rows;
+            // print_r($query);die;
             if ($res > 0) {
                 return $res;
             } else {
